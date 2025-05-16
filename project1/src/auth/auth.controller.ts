@@ -50,8 +50,7 @@ export class AuthController {
     storage: diskStorage({
       destination: './uploads',
       filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+        cb(null, file.originalname);
       },
     }),
   }))
@@ -59,11 +58,19 @@ export class AuthController {
     if (!file) {
       return { message: 'No file uploaded' };
     }
-    // Upload to GCS
-    const gcsFilename = await this.gcsService.uploadFile(file.path, file.filename);
-    // Emit WebSocket event
+    let gcsFilename = "";
+    try {
+      gcsFilename = await this.gcsService.uploadFile(file.path, file.filename);
+    } catch (err) {
+      // GCS upload failed, but local upload succeeded
+      gcsFilename = "";
+    }
     this.fileEventsGateway.emitFileUploaded({ filename: file.filename });
-    return { message: 'File uploaded successfully', filename: file.filename, gcsFilename };
+    return {
+      message: gcsFilename ? 'File uploaded successfully to GCS and local folder' : 'File uploaded successfully (local only)',
+      filename: file.filename,
+      gcsFilename
+    };
   }
 
   @UseGuards(JwtAuthGuard)
