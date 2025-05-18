@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+config({ path: 'cred.env' });
+
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -8,7 +11,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: 'your_jwt_secret', // Use env variable in production
+      secretOrKey: process.env.JWT_SECRET || 'your_jwt_secret', // Use env variable in production
     });
   }
 

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Get, UseInterceptors, UploadedFile, Res, Param } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, UseInterceptors, UploadedFile, Res, Param, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwtAuth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -8,6 +8,9 @@ import { GcsService } from './gcs.service';
 import { Response } from 'express';
 import * as fs from 'fs';
 import { FileEventsGateway } from './file-events.gateway';
+import { AuthGuard } from '@nestjs/passport';
+import { JwtService } from '@nestjs/jwt';
+
 
 @Controller('auth')
 export class AuthController {
@@ -15,6 +18,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly gcsService: GcsService,
     private readonly fileEventsGateway: FileEventsGateway,
+    private readonly jwtService: JwtService, // Add JwtService for Google callback
   ) {}
 
   @Post('login')
@@ -98,5 +102,22 @@ export class AuthController {
     // In a real app, this would be triggered by a GCS event or HTTP call
     // Here, just simulate processing
     return { message: `Image ${body.filename} processed (stub)` };
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+    // Google redirect will happen here
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req: any, @Res() res: Response) {
+    const user = req.user;
+    const payload = { username: user.email, sub: user.googleId };
+    const token = this.jwtService.sign(payload);
+    // Redirect to frontend with token and user info
+    const redirectUrl = `http://localhost:5173/google/callback?token=${token}&name=${encodeURIComponent(user.name)}`;
+    return res.redirect(redirectUrl);
   }
 }
